@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation CO2 Impact</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <h1 id="appName" class="text-3xl font-semibold text-center mb-6">Simulation d'Impact Carbone</h1>
+
+        <form id="carbonImpactForm" class="space-y-4">
+            <!-- Prompt Input -->
+            <div>
+                <label for="prompt" class="block text-lg font-medium">Votre Prompt</label>
+                <textarea id="prompt" name="prompt" rows="4" class="w-full p-2 border rounded-md" placeholder="Entrez votre requête ici..."></textarea>
+            </div>
+
+            <!-- Model Selection -->
+            <div>
+                <label for="model" class="block text-lg font-medium">Choisissez un Modèle</label>
+                <select id="model" name="model" class="w-full p-2 border rounded-md">
+                    <!-- Dynamically populated -->
+                </select>
+            </div>
+
+            <!-- Check for GPU -->
+            <div>
+                <label class="block text-lg font-medium">Avez-vous un GPU?</label>
+                <input type="checkbox" id="has_gpu" name="has_gpu" class="w-5 h-5"/>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md">Simuler Impact Carbone</button>
+        </form>
+    </div>
+
+    <script>
+        // Fetch the app name and set it in the title
+        async function fetchAppName() {
+            const response = await fetch("/infos/app_name/");
+            const data = await response.json();
+            document.getElementById("appName").textContent = data.app_name;
+        }
+
+        // Fetch the available models from the backend
+        async function fetchModels() {
+            const response = await fetch("/infos/models/");
+            const data = await response.json();
+            const modelSelect = document.getElementById("model");
+            data.available_models.forEach(model => {
+                const option = document.createElement("option");
+                option.value = model;
+                option.textContent = model;
+                modelSelect.appendChild(option);
+            });
+        }
+
+        // Function to get the device type from User-Agent
+        function getDeviceType() {
+            const userAgent = navigator.userAgent;
+            if (/mobile/i.test(userAgent)) {
+                return 'Mobile';
+            } else if (/tablet/i.test(userAgent)) {
+                return 'Tablet';
+            } else {
+                return 'Desktop';
+            }
+        }
+
+        // Function to get the user's location via geolocation
+        function getLocation() {
+            return new Promise((resolve, reject) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition((position) => {
+                        resolve(position.coords.latitude + "," + position.coords.longitude);
+                    }, (err) => {
+                        reject("Location not available");
+                    });
+                } else {
+                    reject("Geolocation not supported");
+                }
+            });
+        }
+
+        // Form submission handler
+        document.getElementById("carbonImpactForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const prompt = document.getElementById("prompt").value;
+            const model = document.getElementById("model").value;
+            const deviceType = getDeviceType();
+            const location = await getLocation().catch((err) => "Location not available");
+            const hasGpu = document.getElementById("has_gpu").checked;
+
+            // Send data to backend
+            const response = await fetch("/computation/simulate_carbon_impact/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    model: model,
+                    device_type: deviceType,
+                    location: location,
+                    has_gpu: hasGpu
+                })
+            });
+
+            const data = await response.json();
+            console.log("Simulation Result: ", data);
+        });
+
+        // Fetch app name and available models on page load
+        fetchAppName();
+        fetchModels();
+    </script>
+</body>
+</html>
