@@ -7,7 +7,7 @@ services:
     build:
       context: .
     volumes:
-      - /data:/data
+      - ./data:/data
     networks:
       - backend
     env_file:
