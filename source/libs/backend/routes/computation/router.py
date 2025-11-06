@@ -43,7 +43,7 @@ async def simulate_carbon_impact(user_input: UserInput):
 
     # Equivalents (personal)
     phone_charges = energy_wh / 15.0  # ~15 Wh per phone full charge
-    laptop_charges = energy_wh / 50.0  # ~50 Wh per laptop full charge
+    km_car = (carbon_gco2 / 120.0)        # 120 g CO2 per km
     led_hours = energy_wh / 10.0  # 10 W LED -> Wh/10 = hours
 
     result = {
@@ -51,8 +51,8 @@ async def simulate_carbon_impact(user_input: UserInput):
         "carbon_gco2": round(carbon_gco2, 3),
         "equivalents": {
             "phone_charges": round(phone_charges, 2),
-            "laptop_charges": round(laptop_charges, 2),
-            "led_hours": round(led_hours, 2)
+            "led_hours": round(led_hours, 2),
+            "km_car": round(km_car, 5)
         }
     }
     return result

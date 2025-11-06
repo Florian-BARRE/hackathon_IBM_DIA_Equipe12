@@ -3,7 +3,8 @@ let appData = {
   appName: 'EcoLLM Tracker',
   models: [],
   deviceType: '',        // "Desktop" | "Laptop" | "Server"
-  location: '',
+  location: '',          // "lat, lon" (kept for backend)
+  countryLabel: '',      // display label for chip
   deviceConfidence: 0,   // 0..1
   userAgent: ''
 };
@@ -94,25 +95,61 @@ function detectBestDevice() {
   return { best: 'Desktop', confidence: 0.5 };
 }
 
-// Location — initial detection (overridable)
-function getLocation() {
+// -------- Location handling --------
+function setLocationChipLabel(text) {
   const el = document.getElementById('location');
+  if (el) el.textContent = text || 'Unknown';
+}
+
+// Reverse geocode lat/lon -> country name (OpenStreetMap Nominatim)
+async function reverseGeocodeCountry(lat, lon) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=3&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+    const r = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Language': 'en',
+        'User-Agent': 'EcoLLM-Tracker/1.0 (+client-side)'
+      }
+    });
+    if (!r.ok) throw new Error('Reverse geocode failed');
+    const data = await r.json();
+    const country = data?.address?.country || data?.name || data?.display_name || 'Unknown';
+    return country;
+  } catch (e) {
+    console.warn('Reverse geocode error:', e);
+    return 'Unknown';
+  }
+}
+
+// Initial detection (overridable)
+function getLocation() {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = pos.coords.latitude.toFixed(2);
         const lon = pos.coords.longitude.toFixed(2);
         appData.location = `${lat}, ${lon}`;
-        el.textContent = `${lat}, ${lon}`;
+        const country = await reverseGeocodeCountry(lat, lon);
+        appData.countryLabel = country;
+        setLocationChipLabel(country);
       },
-      () => {
-        appData.location = '48.85, 2.35';
-        el.textContent = '48.85, 2.35';
+      async () => {
+        const lat = 48.85, lon = 2.35; // Paris fallback
+        appData.location = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+        const country = await reverseGeocodeCountry(lat, lon);
+        appData.countryLabel = country;
+        setLocationChipLabel(country);
       }
     );
   } else {
-    appData.location = '48.85, 2.35';
-    el.textContent = '48.85, 2.35';
+    (async () => {
+      const lat = 48.85, lon = 2.35;
+      appData.location = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      const country = await reverseGeocodeCountry(lat, lon);
+      appData.countryLabel = country;
+      setLocationChipLabel(country);
+    })();
   }
 }
 
@@ -153,6 +190,11 @@ function setupEventListeners() {
   document.getElementById('closeMapBtn').addEventListener('click', closeLocationPicker);
   document.getElementById('cancelMapBtn').addEventListener('click', closeLocationPicker);
   document.getElementById('saveMapBtn').addEventListener('click', savePickedLocation);
+
+  // Help / Methodology modal
+  document.getElementById('helpBtn').addEventListener('click', openHelpModal);
+  document.getElementById('closeHelpBtn').addEventListener('click', closeHelpModal);
+  document.getElementById('closeHelpBtnBottom').addEventListener('click', closeHelpModal);
 }
 
 // Map device -> emoji and set it on the main button icon span
@@ -211,7 +253,7 @@ async function handlePersonalSimulation() {
     model,
     device_type: appData.deviceType,
     device_meta: { user_agent: appData.userAgent, confidence: appData.deviceConfidence },
-    location: appData.location,
+    location: appData.location,         // still lat,lon for backend
     has_gpu: hasGpu
   };
 
@@ -246,6 +288,7 @@ function displayPersonalResults(data, model) {
   if (data.equivalents) {
     document.getElementById('phoneCharges').textContent = data.equivalents.phone_charges ?? '0';
     document.getElementById('ledHours').textContent = data.equivalents.led_hours ?? '0';
+    document.getElementById('carKm').textContent = data.equivalents.km_car ?? '0';
   }
 
   resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -269,7 +312,7 @@ async function handleEnterpriseSimulation() {
     model,
     device_type: appData.deviceType,
     device_meta: { user_agent: appData.userAgent, confidence: appData.deviceConfidence },
-    location: appData.location,
+    location: appData.location,         // still lat,lon
     has_gpu: hasGpu,
     queries_per_user_per_day: queriesPerDay,
     number_of_employees: numEmployees
@@ -294,7 +337,6 @@ function displayEnterpriseResults(data) {
   const resultsContainer = document.getElementById('enterpriseResults');
   resultsContainer.classList.remove('hidden');
 
-  // Top cards (Trees card removed)
   document.getElementById('totalQueries').textContent = formatNumber(data.yearly_totals.total_queries);
   document.getElementById('totalEnergy').textContent = formatNumber(data.yearly_totals.total_energy_kwh);
   const co2kg = (data.yearly_totals.total_carbon_kg != null)
@@ -302,14 +344,12 @@ function displayEnterpriseResults(data) {
     : (data.yearly_totals.total_carbon_tons || 0) * 1000;
   document.getElementById('totalCarbon').textContent = formatNumber(co2kg);
 
-  // Equivalents (low impact)
   if (data.equivalents) {
     document.getElementById('phoneChargesEquiv').textContent = formatNumber(data.equivalents.phone_charges ?? 0);
     document.getElementById('kmCarEquiv').textContent = formatNumber(data.equivalents.km_car ?? 0);
     document.getElementById('ledHoursEquiv').textContent = formatNumber(data.equivalents.led_hours ?? 0);
   }
 
-  // Per employee
   document.getElementById('perEmpQueries').textContent = formatNumber(data.per_employee.queries_per_year);
   document.getElementById('perEmpEnergy').textContent = data.per_employee.energy_kwh;
   document.getElementById('perEmpCarbon').textContent = data.per_employee.carbon_kg;
@@ -407,11 +447,21 @@ function closeLocationPicker() {
   document.getElementById('mapModal').classList.add('hidden');
 }
 
-function savePickedLocation() {
+async function savePickedLocation() {
   if (pendingLat == null || pendingLon == null) return;
   appData.location = `${pendingLat.toFixed(2)}, ${pendingLon.toFixed(2)}`;
-  document.getElementById('location').textContent = appData.location;
+  const country = await reverseGeocodeCountry(pendingLat, pendingLon);
+  appData.countryLabel = country;
+  setLocationChipLabel(country);
   closeLocationPicker();
+}
+
+// ---- Help / Methodology modal ----
+function openHelpModal() {
+  document.getElementById('helpModal').classList.remove('hidden');
+}
+function closeHelpModal() {
+  document.getElementById('helpModal').classList.add('hidden');
 }
 
 // ---- UI utils ----

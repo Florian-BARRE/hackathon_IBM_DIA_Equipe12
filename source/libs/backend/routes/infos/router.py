@@ -17,5 +17,5 @@ async def get_models():
 @auto_handle_errors
 @router.get("/app_name/")
 async def get_app_name():
-    return {"app_name": "Carbon Impact Simulation"}
+    return {"app_name": "EcoLLM - Carbon Impact Simulation"}
 
