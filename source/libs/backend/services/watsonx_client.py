@@ -90,41 +90,49 @@ class WatsonClient(LoggerClass):
     # =============================
 
     def predict(
-        self,
-        have_gpu: bool,
-        device: str,
-        nb_parameters: str | int | float,
-        indicators: dict[str, Any],
-        headers: Optional[dict[str, str]] = None,
+            self,
+            have_gpu: bool,
+            device: str,
+            nb_parameters: float,
+            indicators: dict[str, Any],
+            headers: Optional[dict[str, str]] = None,
     ) -> float:
-        """
-        High-level scoring helper.
-        Automatically constructs the payload for your model.
-
-        Args:
-            device: e.g. "desktop"
-            nb_parameters: can be str/int/float (model should handle it)
-            indicators: dict of the other fields and values (same keys as model training)
-            headers: optional dict of extra headers (merged with auth headers)
-
-        Returns:
-            float: Model prediction result
-        """
         self.logger.debug("Calling predict with device=%s nb_parameters=%s", device, nb_parameters)
 
-        # 1. Validate indicators
-        if not isinstance(indicators, dict) or not indicators:
-            raise ValueError("indicators must be a non-empty dict")
+        # 2. Decide prediction mode (direct vs. baseline + scaling)
+        use_scaling = nb_parameters > 100.0
+        alpha = 1.1
 
-        # 2. Build input structure
-        fields = ["usable_gpu", "device", "nb_parameters"] + list(indicators.keys())
-        values = [[have_gpu, device, nb_parameters] + list(indicators.values())]
-        payload: dict[str, Any] = {"input_data": [{"fields": fields, "values": values}]}
+        if use_scaling:
+            # --- Baseline pass with 70B ---
+            baseline_nb = 70.0
+            fields = ["usable_gpu", "device", "nb_parameters"] + list(indicators.keys())
+            values = [[have_gpu, device, baseline_nb] + list(indicators.values())]
+            payload: dict[str, Any] = {"input_data": [{"fields": fields, "values": values}]}
 
-        self.logger.info("Submitting prediction request with fields: %s", fields)
+            self.logger.info(
+                "Submitting baseline prediction (scaling active). fields: %s | alpha=%.3f | target_nb=%.3f",
+                fields, alpha, nb_parameters
+            )
 
-        # 3. Submit and return prediction
-        return self._send_prediction(payload, headers)["predictions"][0]["values"][0][0]
+            baseline = self._send_prediction(payload, headers)["predictions"][0]["values"][0][0]
+            ratio = nb_parameters / baseline_nb
+            scaled = float(baseline) * (ratio ** alpha)
+
+            self.logger.debug(
+                "Baseline=%s | ratio=%.4f | alpha=%.3f -> scaled=%s",
+                baseline, ratio, alpha, scaled
+            )
+            return scaled
+
+        else:
+            # --- Direct pass with provided nb_parameters ---
+            fields = ["usable_gpu", "device", "nb_parameters"] + list(indicators.keys())
+            values = [[have_gpu, device, nb_parameters] + list(indicators.values())]
+            payload: dict[str, Any] = {"input_data": [{"fields": fields, "values": values}]}
+
+            self.logger.info("Submitting prediction request with fields: %s", fields)
+            return self._send_prediction(payload, headers)["predictions"][0]["values"][0][0]
 
     def predict_raw(
         self,
