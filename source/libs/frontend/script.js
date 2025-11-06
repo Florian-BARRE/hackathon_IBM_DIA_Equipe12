@@ -279,8 +279,8 @@ function displayPersonalResults(data, model) {
 
   document.getElementById('resultModel').textContent = model;
 
-  // Personal: show energy in Wh (kWh * 1000)
-  const energyWh = (data.energy_kwh || 0) * 1000;
+  // Personal: show energy in Wh (kWh * 1000), rounded like Python-derived precision
+  const energyWh = roundPython((data.energy_kwh || 0) * 1000, 3);
   document.getElementById('energyConsumption').textContent = formatNumber(energyWh);
 
   document.getElementById('carbonImpact').textContent = data.carbon_gco2 || '0';
@@ -339,9 +339,13 @@ function displayEnterpriseResults(data) {
 
   document.getElementById('totalQueries').textContent = formatNumber(data.yearly_totals.total_queries);
   document.getElementById('totalEnergy').textContent = formatNumber(data.yearly_totals.total_energy_kwh);
-  const co2kg = (data.yearly_totals.total_carbon_kg != null)
+
+  // Prefer backend kg (rounded(2)); otherwise compute from tons and round like Python to 2 decimals
+  let co2kg = (data.yearly_totals.total_carbon_kg != null)
     ? data.yearly_totals.total_carbon_kg
     : (data.yearly_totals.total_carbon_tons || 0) * 1000;
+
+  co2kg = roundPython(co2kg, 2);
   document.getElementById('totalCarbon').textContent = formatNumber(co2kg);
 
   if (data.equivalents) {
@@ -464,6 +468,42 @@ function closeHelpModal() {
   document.getElementById('helpModal').classList.add('hidden');
 }
 
+// ---- Numeric helpers (Python-like) ----
+// Python 3's round(): banker's rounding (round half to even), with ndigits
+function roundPython(value, ndigits = 0) {
+  if (!Number.isFinite(value)) return value;
+  const factor = Math.pow(10, ndigits);
+  const scaled = value * factor;
+
+  // integer part toward zero
+  const intPart = scaled < 0 ? Math.ceil(scaled) : Math.floor(scaled);
+  const frac = scaled - intPart;
+  const absFrac = Math.abs(frac);
+
+  if (absFrac < 0.5) {
+    // closer to intPart
+    return intPart / factor;
+  } else if (absFrac > 0.5) {
+    // away from zero
+    const away = intPart + Math.sign(scaled);
+    return away / factor;
+  } else {
+    // exactly .5 -> to even
+    const isIntEven = (Math.abs(intPart) % 2) === 0;
+    const chosen = isIntEven ? intPart : (intPart + Math.sign(scaled));
+    return chosen / factor;
+  }
+}
+
+// Truncate toward zero at ndigits precision (like Python's trunc on scaled value)
+function truncatePython(value, ndigits = 0) {
+  if (!Number.isFinite(value)) return value;
+  const factor = Math.pow(10, ndigits);
+  const scaled = value * factor;
+  const truncated = scaled < 0 ? Math.ceil(scaled) : Math.floor(scaled);
+  return truncated / factor;
+}
+
 // ---- UI utils ----
 function showError(message) {
   const el = document.getElementById('errorMessage');
@@ -485,6 +525,7 @@ function setLoadingState(isLoading, btnId, textId, iconId = null) {
   if (isLoading) {
     button.disabled = true;
     btnText.textContent = 'Calculating...';
+
     if (iconId) {
       const icon = document.getElementById(iconId);
       if (icon) icon.style.display = 'none';
