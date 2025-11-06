@@ -1,10 +1,15 @@
 {
   "available_models": {
-    "gemma_2b":  2,
-    "gemma_7b":  7,
-    "llama3_8b":  8,
-    "llama3_70b": 70,
-    "codellama_7b":  7,
-    "codellama_70b":  70
+    "Gemma-2b":  2,
+    "Gemma-7b":  7,
+    "Llama3-8b":  8,
+    "Llama3-70b": 70,
+    "Codellama-7b":  7,
+    "Codellama-70b":  70,
+    "GPT-5": 1000,
+    "GPT-4-Turbo": 800,
+    "Claude-3.5-Sonnet": 700,
+    "Gemini-1.5-Pro": 850,
+    "Mistral-Large": 120
   }
 }

@@ -10,6 +10,8 @@ from loggerplusplus import loggerplusplus
 from loggerplusplus import formats as lpp_formats
 
 load_dotenv()
+
+
 # ───────────────────── helper ──────────────────────────────────
 def env(key: str, *, default: Any = None, cast: Any = str):
     """Tiny helper to read ENV with optional cast & default."""
@@ -35,14 +37,20 @@ class CONFIG:
     )
 
     MODELS_PATH = pathlib.Path(DATA_DIR) / env("MODELS_STORAGE_FILE")
-    CO2_PATH = pathlib.Path(DATA_DIR) / env("CO2_FILE")
-
 
     # Add Tools dir to python path
     sys.path.append(str(TOOLS_DIR))  # Add libs directory to the path for imports
 
     # ──── FastAPI ────
     PORT = env("PORT", cast=int)
+
+    # ──── Electricity Maps Api ────
+    ELECTRICITY_MAPS_API_TOKEN = env("ELECTRICITY_MAPS_API_TOKEN")
+
+    # ──── WatsonX ────
+    WATSONX_API_TOKEN = env("WATSONX_API_TOKEN")
+    WATSONX_DEPLOYMENT_ID = env("WATSONX_DEPLOYMENT_ID")
+    WATSONX_REGION = env("WATSONX_REGION")
 
     # ───── logging ─────
     CONSOLE_LEVEL = env("CONSOLE_LEVEL")

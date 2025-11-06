@@ -16,7 +16,11 @@ from backend.app import create_app
 from backend.context import CONTEXT
 
 # Services
-from backend.services.models import ModelParamsComputer
+from backend.services.model_parameters_computer import ModelParamsComputer
+from backend.services.electricitymaps_client import ElectricityMapsAPI
+from backend.services.prompt_computer import PromptComputer
+from backend.services.watsonx_client import WatsonClient
+
 
 # =======================
 #   Private Functions
@@ -40,6 +44,15 @@ def _build_app() -> FastAPI:
     )
     CONTEXT.model_params_computer = ModelParamsComputer(
         json_path=CONFIG.MODELS_PATH
+    )
+    CONTEXT.electricity_maps_api = ElectricityMapsAPI(
+        token=CONFIG.ELECTRICITY_MAPS_API_TOKEN
+    )
+    CONTEXT.prompt_computer = PromptComputer()
+    CONTEXT.watsonx_api = WatsonClient(
+        api_key=CONFIG.WATSONX_API_TOKEN,
+        deployment_id=CONFIG.WATSONX_DEPLOYMENT_ID,
+        region=CONFIG.WATSONX_REGION
     )
 
     # Create the FastAPI application

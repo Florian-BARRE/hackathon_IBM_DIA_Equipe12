@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EcoLLM Tracker - Simulateur d'Impact Carbone</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @keyframes spin {
             to { transform: rotate(360deg); }
@@ -18,22 +19,20 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+
+        .tab-button.active {
+            background: linear-gradient(to right, #10b981, #0d9488);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
         }
     </style>
 </head>
 <body class="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 min-h-screen">
-    
+
     <!-- Header -->
     <header class="bg-white/80 backdrop-blur-sm border-b border-emerald-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
@@ -55,7 +54,6 @@
                     <div class="flex items-center space-x-1">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="4" y="4" width="16" height="16" rx="2"/>
-                            <rect x="9" y="9" width="6" height="6"/>
                         </svg>
                         <span id="deviceType" class="hidden sm:inline"></span>
                     </div>
@@ -71,10 +69,34 @@
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    <!-- Tab Navigation -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <div class="bg-white rounded-xl shadow-lg p-2 flex gap-2">
+            <button id="tabPersonal" class="tab-button active flex-1 px-6 py-3 rounded-lg font-semibold transition-all">
+                <div class="flex items-center justify-center space-x-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <span>Usage Personnel</span>
+                </div>
+            </button>
+            <button id="tabEnterprise" class="tab-button flex-1 px-6 py-3 rounded-lg font-semibold transition-all text-gray-600">
+                <div class="flex items-center justify-center space-x-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="7" width="20" height="14" rx="2"/>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                    </svg>
+                    <span>Estimation Entreprise</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Personal Usage Section -->
+    <main id="personalSection" class="max-w-7xl mx-auto px-4 sm:px-6 pb-12">
         <div class="grid lg:grid-cols-2 gap-6 sm:gap-8">
-            
+
             <!-- Form Section -->
             <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-emerald-100">
                 <div class="flex items-center space-x-2 mb-6">
@@ -85,48 +107,22 @@
                 </div>
 
                 <div class="space-y-6">
-                    <!-- Prompt Input -->
                     <div>
-                        <label for="prompt" class="block text-sm font-semibold text-gray-700 mb-2">
-                            Votre Requête
-                        </label>
-                        <textarea 
-                            id="prompt" 
-                            rows="4" 
+                        <label for="prompt" class="block text-sm font-semibold text-gray-700 mb-2">Votre Requête</label>
+                        <textarea id="prompt" rows="4"
                             class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all resize-none"
                             placeholder="Entrez votre prompt pour l'analyse d'impact carbone..."></textarea>
-                        <p class="mt-2 text-xs text-gray-500 flex items-center space-x-1">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-yellow-500">
-                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                            </svg>
-                            <span>Plus votre prompt est long, plus l'impact sera important</span>
-                        </p>
                     </div>
 
-                    <!-- Model Selection -->
                     <div>
-                        <label for="model" class="block text-sm font-semibold text-gray-700 mb-2">
-                            Modèle LLM
-                        </label>
-                        <div class="relative">
-                            <select 
-                                id="model" 
-                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all appearance-none bg-white cursor-pointer">
-                                <option value="">Sélectionnez un modèle</option>
-                            </select>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
-                            </svg>
-                        </div>
+                        <label for="model" class="block text-sm font-semibold text-gray-700 mb-2">Modèle LLM</label>
+                        <select id="model" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="">Sélectionnez un modèle</option>
+                        </select>
                     </div>
 
-                    <!-- GPU Checkbox -->
                     <div class="flex items-start space-x-3 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
-                        <input 
-                            type="checkbox" 
-                            id="hasGpu" 
-                            class="w-5 h-5 mt-0.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer accent-emerald-600">
+                        <input type="checkbox" id="hasGpu" class="w-5 h-5 mt-0.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer accent-emerald-600">
                         <label for="hasGpu" class="flex-1 cursor-pointer">
                             <div class="flex items-center space-x-2">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-600">
@@ -134,29 +130,19 @@
                                 </svg>
                                 <span class="font-medium text-gray-700">Utilisation GPU</span>
                             </div>
-                            <p class="text-xs text-gray-600 mt-1">Active cette option pour réduire l'impact carbone</p>
                         </label>
                     </div>
 
-                    <!-- Submit Button -->
-                    <button 
-                        id="simulateBtn" 
+                    <button id="simulateBtn"
                         class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-4 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                         <svg id="btnIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M2 12h20"/>
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                         </svg>
-                        <span id="btnText">Simuler l'Impact Carbone</span>
+                        <span id="btnText">Simuler l'Impact</span>
                     </button>
 
-                    <!-- Error Message -->
-                    <div id="errorMessage" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl flex items-start space-x-2">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-red-600 flex-shrink-0">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
+                    <div id="errorMessage" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl">
                         <p id="errorText" class="text-sm text-red-800"></p>
                     </div>
                 </div>
@@ -164,34 +150,6 @@
 
             <!-- Results Section -->
             <div class="space-y-6">
-                
-                <!-- Info Card -->
-                <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-xl p-6 sm:p-8 text-white">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                            <polyline points="17 6 23 6 23 12"/>
-                        </svg>
-                        <h3 class="text-xl sm:text-2xl font-bold">Pourquoi C'est Important?</h3>
-                    </div>
-                    <p class="text-emerald-50 leading-relaxed text-sm sm:text-base">
-                        Chaque requête à un LLM consomme de l'énergie et génère des émissions de CO₂. 
-                        En comprenant cet impact, nous pouvons faire des choix plus durables et optimiser 
-                        nos usages pour un avenir plus vert.
-                    </p>
-                    <div class="mt-6 grid grid-cols-2 gap-4">
-                        <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                            <div class="text-2xl sm:text-3xl font-bold">5.2k</div>
-                            <div class="text-xs sm:text-sm text-emerald-100">Mesures réalisées</div>
-                        </div>
-                        <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                            <div class="text-2xl sm:text-3xl font-bold">15+</div>
-                            <div class="text-xs sm:text-sm text-emerald-100">Modèles analysés</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Results Display -->
                 <div id="resultsContainer" class="hidden fade-in bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-emerald-100">
                     <div class="flex items-center space-x-2 mb-6">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-600">
@@ -205,68 +163,65 @@
                         <p class="text-sm text-gray-600">Modèle: <span id="resultModel" class="font-semibold text-gray-800"></span></p>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 sm:gap-4">
-                        <div class="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-4 border border-red-200">
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-5 border border-red-200">
                             <div class="flex items-center space-x-2 mb-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-red-600">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-red-600">
                                     <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
                                 </svg>
-                                <p class="text-xs sm:text-sm font-semibold text-gray-700">Impact CO₂</p>
+                                <p class="text-sm font-semibold text-gray-700">CO₂</p>
                             </div>
-                            <p id="carbonImpact" class="text-2xl sm:text-3xl font-bold text-red-600">0</p>
+                            <p id="carbonImpact" class="text-3xl font-bold text-red-600">0</p>
                             <p class="text-xs text-gray-600 mt-1">grammes de CO₂e</p>
                         </div>
 
-                        <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-4 border border-yellow-200">
+                        <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-5 border border-yellow-200">
                             <div class="flex items-center space-x-2 mb-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-yellow-600">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-yellow-600">
                                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                                 </svg>
-                                <p class="text-xs sm:text-sm font-semibold text-gray-700">Énergie</p>
+                                <p class="text-sm font-semibold text-gray-700">Énergie</p>
                             </div>
-                            <p id="energyConsumption" class="text-2xl sm:text-3xl font-bold text-yellow-600">0</p>
-                            <p class="text-xs text-gray-600 mt-1">Wh consommés</p>
-                        </div>
-
-                        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
-                            <div class="flex items-center space-x-2 mb-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-blue-600">
-                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                                </svg>
-                                <p class="text-xs sm:text-sm font-semibold text-gray-700">Tokens</p>
-                            </div>
-                            <p id="tokensProcessed" class="text-2xl sm:text-3xl font-bold text-blue-600">0</p>
-                            <p class="text-xs text-gray-600 mt-1">tokens traités</p>
-                        </div>
-
-                        <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
-                            <div class="flex items-center space-x-2 mb-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-purple-600">
-                                    <rect x="4" y="4" width="16" height="16" rx="2"/>
-                                    <rect x="9" y="9" width="6" height="6"/>
-                                </svg>
-                                <p class="text-xs sm:text-sm font-semibold text-gray-700">Temps</p>
-                            </div>
-                            <p id="inferenceTime" class="text-2xl sm:text-3xl font-bold text-purple-600">0</p>
-                            <p class="text-xs text-gray-600 mt-1">secondes</p>
+                            <p id="energyConsumption" class="text-3xl font-bold text-yellow-600">0</p>
+                            <p class="text-xs text-gray-600 mt-1">kWh consommés</p>
                         </div>
                     </div>
 
-                    <div class="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
-                        <div class="flex items-center space-x-2">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-600 flex-shrink-0">
-                                <path d="M12 2v20M2 12h20M17 7l-5 5-5-5M7 17l5-5 5 5"/>
+                    <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-200">
+                        <h4 class="font-semibold text-gray-800 mb-4 flex items-center">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-2 text-emerald-600">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="16" x2="12" y2="12"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8"/>
                             </svg>
-                            <p class="text-xs sm:text-sm text-gray-700">
-                                <span id="treesEquivalent" class="font-bold text-emerald-600">0</span> arbres 
-                                seraient nécessaires pour compenser cette émission sur 1 an
-                            </p>
+                            Équivalents
+                        </h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">📱 Recharges smartphone</span>
+                                <span id="phoneCharges" class="font-bold text-gray-800">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">💻 Recharges laptop</span>
+                                <span id="laptopCharges" class="font-bold text-gray-800">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">💡 Heures LED</span>
+                                <span id="ledHours" class="font-bold text-gray-800">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">🚗 km en voiture</span>
+                                <span id="kmCar" class="font-bold text-gray-800">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">🌳 Arbres (1 an)</span>
+                                <span id="treesYear" class="font-bold text-gray-800">0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Empty State -->
-                <div id="emptyState" class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-200 text-center">
+                <div id="emptyState" class="bg-white rounded-2xl shadow-xl p-8 border border-gray-200 text-center">
                     <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
                             <circle cx="12" cy="12" r="10"/>
@@ -274,10 +229,153 @@
                             <line x1="12" y1="16" x2="12.01" y2="16"/>
                         </svg>
                     </div>
-                    <p class="text-gray-500 text-sm">
-                        Les résultats apparaîtront ici après la simulation
-                    </p>
+                    <p class="text-gray-500 text-sm">Les résultats apparaîtront ici après la simulation</p>
                 </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Enterprise Section -->
+    <main id="enterpriseSection" class="hidden max-w-7xl mx-auto px-4 sm:px-6 pb-12">
+        <div class="space-y-8">
+
+            <!-- Enterprise Form -->
+            <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-emerald-100">
+                <div class="flex items-center space-x-2 mb-6">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-600">
+                        <rect x="2" y="7" width="20" height="14" rx="2"/>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                    </svg>
+                    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Estimation Annuelle Entreprise</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="space-y-6">
+                        <div>
+                            <label for="enterprisePrompt" class="block text-sm font-semibold text-gray-700 mb-2">Requête Type</label>
+                            <textarea id="enterprisePrompt" rows="3"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none"
+                                placeholder="Exemple de requête typique de vos employés..."></textarea>
+                        </div>
+
+                        <div>
+                            <label for="enterpriseModel" class="block text-sm font-semibold text-gray-700 mb-2">Modèle LLM</label>
+                            <select id="enterpriseModel" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                <option value="">Sélectionnez un modèle</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-start space-x-3 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+                            <input type="checkbox" id="enterpriseGpu" class="w-5 h-5 mt-0.5 accent-emerald-600">
+                            <label for="enterpriseGpu" class="flex-1 cursor-pointer">
+                                <span class="font-medium text-gray-700">GPU activé</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <label for="queriesPerDay" class="block text-sm font-semibold text-gray-700 mb-2">Requêtes / Employé / Jour</label>
+                            <input type="number" id="queriesPerDay" min="1" value="10"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label for="numEmployees" class="block text-sm font-semibold text-gray-700 mb-2">Nombre d'Employés</label>
+                            <input type="number" id="numEmployees" min="1" value="100"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+
+                        <button id="simulateEnterpriseBtn"
+                            class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-4 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50">
+                            <span id="enterpriseBtnText">Calculer l'Impact Annuel</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="enterpriseError" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <p id="enterpriseErrorText" class="text-sm text-red-800"></p>
+                </div>
+            </div>
+
+            <!-- Enterprise Results -->
+            <div id="enterpriseResults" class="hidden fade-in space-y-6">
+
+                <!-- Summary Cards -->
+                <div class="grid md:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-emerald-500">
+                        <p class="text-sm text-gray-600 mb-1">Requêtes / An</p>
+                        <p id="totalQueries" class="text-3xl font-bold text-gray-800">0</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
+                        <p class="text-sm text-gray-600 mb-1">Énergie Totale</p>
+                        <p id="totalEnergy" class="text-3xl font-bold text-yellow-600">0</p>
+                        <p class="text-xs text-gray-500">kWh / an</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500">
+                        <p class="text-sm text-gray-600 mb-1">CO₂ Total</p>
+                        <p id="totalCarbon" class="text-3xl font-bold text-red-600">0</p>
+                        <p class="text-xs text-gray-500">tonnes / an</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+                        <p class="text-sm text-gray-600 mb-1">Arbres Nécessaires</p>
+                        <p id="totalTrees" class="text-3xl font-bold text-green-600">0</p>
+                        <p class="text-xs text-gray-500">pour compenser</p>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+
+<!-- Charts -->
+<div class="grid md:grid-cols-1 gap-6">
+    <div class="bg-white rounded-2xl shadow-xl p-6 border border-emerald-100">
+        <h3 class="text-lg font-bold text-gray-800 mb-1">Évolution annuelle des métriques</h3>
+        <p class="text-xs text-gray-500 mb-4">CO₂ (kg), Énergie (kWh) et Requêtes (par mois)</p>
+        <canvas id="yearlyMetricsChart"></canvas>
+    </div>
+</div>
+
+                <!-- Equivalents -->
+                <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-emerald-100">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">Équivalents Annuels</h3>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div class="text-center p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
+                            <div class="text-5xl mb-3">✈️</div>
+                            <p id="flightsEquiv" class="text-3xl font-bold text-blue-600">0</p>
+                            <p class="text-sm text-gray-600 mt-2">vols Paris-New York</p>
+                        </div>
+                        <div class="text-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
+                            <div class="text-5xl mb-3">🚗</div>
+                            <p id="kmCarEquiv" class="text-3xl font-bold text-purple-600">0</p>
+                            <p class="text-sm text-gray-600 mt-2">km en voiture</p>
+                        </div>
+                        <div class="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
+                            <div class="text-5xl mb-3">🌳</div>
+                            <p id="treesEquiv" class="text-3xl font-bold text-green-600">0</p>
+                            <p class="text-sm text-gray-600 mt-2">arbres à planter</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Per Employee Stats -->
+                <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-emerald-100">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">Impact par Employé</h3>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div class="p-4 bg-gray-50 rounded-xl">
+                            <p class="text-sm text-gray-600 mb-1">Requêtes annuelles</p>
+                            <p id="perEmpQueries" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                        <div class="p-4 bg-yellow-50 rounded-xl">
+                            <p class="text-sm text-gray-600 mb-1">Énergie (kWh)</p>
+                            <p id="perEmpEnergy" class="text-2xl font-bold text-yellow-600">0</p>
+                        </div>
+                        <div class="p-4 bg-red-50 rounded-xl">
+                            <p class="text-sm text-gray-600 mb-1">CO₂ (kg)</p>
+                            <p id="perEmpCarbon" class="text-2xl font-bold text-red-600">0</p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </main>

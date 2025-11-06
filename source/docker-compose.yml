@@ -5,7 +5,9 @@ services:
   app:
     container_name: hackathon_app
     build:
-      context: ./app
+      context: .
+    volumes:
+      - /data:/data
     networks:
       - backend
     env_file:
