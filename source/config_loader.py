@@ -29,11 +29,14 @@ class CONFIG:
     TOOLS_DIR = ROOT_DIR / "libs"
     FRONTEND_DIR = TOOLS_DIR / env("FRONTEND_DIR")
 
-    # DATA_DIR = os.path.join(
-    #     "/",  # Data dir is at root of the container
-    #     env("DATA_DIR", default="data")
-    # )
-    # os.makedirs(DATA_DIR, exist_ok=True)
+    DATA_DIR = os.path.join(
+        "/",  # Data dir is at root of the container
+        env("DATA_DIR", default="data")
+    )
+
+    MODELS_PATH = pathlib.Path(DATA_DIR) / env("MODELS_STORAGE_FILE")
+    CO2_PATH = pathlib.Path(DATA_DIR) / env("CO2_FILE")
+
 
     # Add Tools dir to python path
     sys.path.append(str(TOOLS_DIR))  # Add libs directory to the path for imports

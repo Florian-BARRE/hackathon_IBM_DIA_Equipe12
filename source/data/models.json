@@ -1,0 +1,10 @@
+{
+  "available_models": {
+    "gemma_2b":  2,
+    "gemma_7b":  7,
+    "llama3_8b":  8,
+    "llama3_70b": 70,
+    "codellama_7b":  7,
+    "codellama_70b":  70
+  }
+}

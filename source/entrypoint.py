@@ -15,6 +15,8 @@ from config_loader import CONFIG
 from backend.app import create_app
 from backend.context import CONTEXT
 
+# Services
+from backend.services.models import ModelParamsComputer
 
 # =======================
 #   Private Functions
@@ -35,6 +37,9 @@ def _build_app() -> FastAPI:
     # Create app context -> inject shared instance to the global shared context
     CONTEXT.logger = LoggerPlusPlus(
         core=loggerplusplus.bind(identifier="main")
+    )
+    CONTEXT.model_params_computer = ModelParamsComputer(
+        json_path=CONFIG.MODELS_PATH
     )
 
     # Create the FastAPI application

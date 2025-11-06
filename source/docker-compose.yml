@@ -2,10 +2,10 @@
 # Services
 # -------------------------------------------------------------------
 services:
-  api_server:
+  app:
     container_name: hackathon_app
     build:
-      context: .
+      context: ./app
     networks:
       - backend
     env_file:

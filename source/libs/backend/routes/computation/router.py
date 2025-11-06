@@ -17,6 +17,8 @@ router = APIRouter()
 # Route to handle simulation of carbon impact
 @router.post("/simulate_carbon_impact/")
 async def simulate_carbon_impact(user_input: UserInput):
+    parameters = CONTEXT.model_params_computer.get_params(user_input.model)
+
     # Placeholder for actual carbon impact simulation
     result = {
         "prompt": user_input.prompt,

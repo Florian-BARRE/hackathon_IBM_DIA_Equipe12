@@ -1,121 +1,297 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulation CO2 Impact</title>
+    <title>EcoLLM Tracker - Simulateur d'Impact Carbone</title>
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto p-8">
-        <h1 id="appName" class="text-3xl font-semibold text-center mb-6">Simulation d'Impact Carbone</h1>
-
-        <form id="carbonImpactForm" class="space-y-4">
-            <!-- Prompt Input -->
-            <div>
-                <label for="prompt" class="block text-lg font-medium">Votre Prompt</label>
-                <textarea id="prompt" name="prompt" rows="4" class="w-full p-2 border rounded-md" placeholder="Entrez votre requête ici..."></textarea>
-            </div>
-
-            <!-- Model Selection -->
-            <div>
-                <label for="model" class="block text-lg font-medium">Choisissez un Modèle</label>
-                <select id="model" name="model" class="w-full p-2 border rounded-md">
-                    <!-- Dynamically populated -->
-                </select>
-            </div>
-
-            <!-- Check for GPU -->
-            <div>
-                <label class="block text-lg font-medium">Avez-vous un GPU?</label>
-                <input type="checkbox" id="has_gpu" name="has_gpu" class="w-5 h-5"/>
-            </div>
-
-            <!-- Submit Button -->
-            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md">Simuler Impact Carbone</button>
-        </form>
-    </div>
-
-    <script>
-        // Fetch the app name and set it in the title
-        async function fetchAppName() {
-            const response = await fetch("/infos/app_name/");
-            const data = await response.json();
-            document.getElementById("appName").textContent = data.app_name;
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
-
-        // Fetch the available models from the backend
-        async function fetchModels() {
-            const response = await fetch("/infos/models/");
-            const data = await response.json();
-            const modelSelect = document.getElementById("model");
-            data.available_models.forEach(model => {
-                const option = document.createElement("option");
-                option.value = model;
-                option.textContent = model;
-                modelSelect.appendChild(option);
-            });
+        .spinner {
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid white;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
-
-        // Function to get the device type from User-Agent
-        function getDeviceType() {
-            const userAgent = navigator.userAgent;
-            if (/mobile/i.test(userAgent)) {
-                return 'Mobile';
-            } else if (/tablet/i.test(userAgent)) {
-                return 'Tablet';
-            } else {
-                return 'Desktop';
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
-
-        // Function to get the user's location via geolocation
-        function getLocation() {
-            return new Promise((resolve, reject) => {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition((position) => {
-                        resolve(position.coords.latitude + "," + position.coords.longitude);
-                    }, (err) => {
-                        reject("Location not available");
-                    });
-                } else {
-                    reject("Geolocation not supported");
-                }
-            });
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
         }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 min-h-screen">
+    
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-sm border-b border-emerald-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-gradient-to-br from-emerald-500 to-teal-600 p-2 rounded-xl shadow-lg">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M12 2v20M2 12h20M17 7l-5 5-5-5M7 17l5-5 5 5"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 id="appName" class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                            EcoLLM Tracker
+                        </h1>
+                        <p class="text-xs sm:text-sm text-gray-600">Mesurez l'empreinte carbone de vos requêtes LLM</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 text-sm text-gray-600">
+                    <div class="flex items-center space-x-1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="4" width="16" height="16" rx="2"/>
+                            <rect x="9" y="9" width="6" height="6"/>
+                        </svg>
+                        <span id="deviceType" class="hidden sm:inline"></span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <span id="location" class="hidden sm:inline"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-        // Form submission handler
-        document.getElementById("carbonImpactForm").addEventListener("submit", async (event) => {
-            event.preventDefault();
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div class="grid lg:grid-cols-2 gap-6 sm:gap-8">
+            
+            <!-- Form Section -->
+            <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-emerald-100">
+                <div class="flex items-center space-x-2 mb-6">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-600">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Nouvelle Simulation</h2>
+                </div>
 
-            const prompt = document.getElementById("prompt").value;
-            const model = document.getElementById("model").value;
-            const deviceType = getDeviceType();
-            const location = await getLocation().catch((err) => "Location not available");
-            const hasGpu = document.getElementById("has_gpu").checked;
+                <div class="space-y-6">
+                    <!-- Prompt Input -->
+                    <div>
+                        <label for="prompt" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Votre Requête
+                        </label>
+                        <textarea 
+                            id="prompt" 
+                            rows="4" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all resize-none"
+                            placeholder="Entrez votre prompt pour l'analyse d'impact carbone..."></textarea>
+                        <p class="mt-2 text-xs text-gray-500 flex items-center space-x-1">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-yellow-500">
+                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                            </svg>
+                            <span>Plus votre prompt est long, plus l'impact sera important</span>
+                        </p>
+                    </div>
 
-            // Send data to backend
-            const response = await fetch("/computation/simulate_carbon_impact/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    prompt: prompt,
-                    model: model,
-                    device_type: deviceType,
-                    location: location,
-                    has_gpu: hasGpu
-                })
-            });
+                    <!-- Model Selection -->
+                    <div>
+                        <label for="model" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Modèle LLM
+                        </label>
+                        <div class="relative">
+                            <select 
+                                id="model" 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all appearance-none bg-white cursor-pointer">
+                                <option value="">Sélectionnez un modèle</option>
+                            </select>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                    </div>
 
-            const data = await response.json();
-            console.log("Simulation Result: ", data);
-        });
+                    <!-- GPU Checkbox -->
+                    <div class="flex items-start space-x-3 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+                        <input 
+                            type="checkbox" 
+                            id="hasGpu" 
+                            class="w-5 h-5 mt-0.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer accent-emerald-600">
+                        <label for="hasGpu" class="flex-1 cursor-pointer">
+                            <div class="flex items-center space-x-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-600">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                </svg>
+                                <span class="font-medium text-gray-700">Utilisation GPU</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1">Active cette option pour réduire l'impact carbone</p>
+                        </label>
+                    </div>
 
-        // Fetch app name and available models on page load
-        fetchAppName();
-        fetchModels();
-    </script>
+                    <!-- Submit Button -->
+                    <button 
+                        id="simulateBtn" 
+                        class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-4 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                        <svg id="btnIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M2 12h20"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                        <span id="btnText">Simuler l'Impact Carbone</span>
+                    </button>
+
+                    <!-- Error Message -->
+                    <div id="errorMessage" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl flex items-start space-x-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-red-600 flex-shrink-0">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <p id="errorText" class="text-sm text-red-800"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="space-y-6">
+                
+                <!-- Info Card -->
+                <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-xl p-6 sm:p-8 text-white">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                            <polyline points="17 6 23 6 23 12"/>
+                        </svg>
+                        <h3 class="text-xl sm:text-2xl font-bold">Pourquoi C'est Important?</h3>
+                    </div>
+                    <p class="text-emerald-50 leading-relaxed text-sm sm:text-base">
+                        Chaque requête à un LLM consomme de l'énergie et génère des émissions de CO₂. 
+                        En comprenant cet impact, nous pouvons faire des choix plus durables et optimiser 
+                        nos usages pour un avenir plus vert.
+                    </p>
+                    <div class="mt-6 grid grid-cols-2 gap-4">
+                        <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                            <div class="text-2xl sm:text-3xl font-bold">5.2k</div>
+                            <div class="text-xs sm:text-sm text-emerald-100">Mesures réalisées</div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                            <div class="text-2xl sm:text-3xl font-bold">15+</div>
+                            <div class="text-xs sm:text-sm text-emerald-100">Modèles analysés</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Display -->
+                <div id="resultsContainer" class="hidden fade-in bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-emerald-100">
+                    <div class="flex items-center space-x-2 mb-6">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-600">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <h3 class="text-xl sm:text-2xl font-bold text-gray-800">Résultats</h3>
+                    </div>
+
+                    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-600">Modèle: <span id="resultModel" class="font-semibold text-gray-800"></span></p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div class="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-4 border border-red-200">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-red-600">
+                                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+                                </svg>
+                                <p class="text-xs sm:text-sm font-semibold text-gray-700">Impact CO₂</p>
+                            </div>
+                            <p id="carbonImpact" class="text-2xl sm:text-3xl font-bold text-red-600">0</p>
+                            <p class="text-xs text-gray-600 mt-1">grammes de CO₂e</p>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-4 border border-yellow-200">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-yellow-600">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                </svg>
+                                <p class="text-xs sm:text-sm font-semibold text-gray-700">Énergie</p>
+                            </div>
+                            <p id="energyConsumption" class="text-2xl sm:text-3xl font-bold text-yellow-600">0</p>
+                            <p class="text-xs text-gray-600 mt-1">Wh consommés</p>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-blue-600">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                </svg>
+                                <p class="text-xs sm:text-sm font-semibold text-gray-700">Tokens</p>
+                            </div>
+                            <p id="tokensProcessed" class="text-2xl sm:text-3xl font-bold text-blue-600">0</p>
+                            <p class="text-xs text-gray-600 mt-1">tokens traités</p>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-purple-600">
+                                    <rect x="4" y="4" width="16" height="16" rx="2"/>
+                                    <rect x="9" y="9" width="6" height="6"/>
+                                </svg>
+                                <p class="text-xs sm:text-sm font-semibold text-gray-700">Temps</p>
+                            </div>
+                            <p id="inferenceTime" class="text-2xl sm:text-3xl font-bold text-purple-600">0</p>
+                            <p class="text-xs text-gray-600 mt-1">secondes</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+                        <div class="flex items-center space-x-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-600 flex-shrink-0">
+                                <path d="M12 2v20M2 12h20M17 7l-5 5-5-5M7 17l5-5 5 5"/>
+                            </svg>
+                            <p class="text-xs sm:text-sm text-gray-700">
+                                <span id="treesEquivalent" class="font-bold text-emerald-600">0</span> arbres 
+                                seraient nécessaires pour compenser cette émission sur 1 an
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-200 text-center">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                    </div>
+                    <p class="text-gray-500 text-sm">
+                        Les résultats apparaîtront ici après la simulation
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white/80 backdrop-blur-sm border-t border-emerald-200 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+                <p>© 2024 EcoLLM Tracker - Pour une IA plus durable</p>
+                <p>Dataset: Hugging Face - llm-inference-energy-consumption</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
 </body>
 </html>
