@@ -195,3 +195,6 @@ cython_debug/
 
 /csv/*
 todo.txt
+
+
+/source/.env
